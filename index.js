@@ -11,8 +11,8 @@ function GrabHighway(tdxApi,output,packageParams){
     string:true,
     local: false
   }
-  let cameraArray = [];
   var req = function(){
+    var cameraArray = [];
     return tdxApi.getDatasetDataAsync(packageParams.cameraTable, null, null, null)
       .then((response) => {
         output.debug("Retrived data length is "+response.data.length);
@@ -33,6 +33,7 @@ function GrabHighway(tdxApi,output,packageParams){
         }))
       })
       .then((result) => {
+
         _.forEach(result,(val) => {
           cameraArray.push(val);
         });
@@ -46,6 +47,8 @@ function GrabHighway(tdxApi,output,packageParams){
   var computing = false;
   var timer = setInterval(() => {
     if(!computing){
+      computing = true;
+      output.debug("now computing is "+computing);
       req().then((result) => {
         output.debug(result);
         computing = false;
