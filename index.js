@@ -80,7 +80,7 @@ function databot(input, output, context) {
 
 
 var request = require("request-promise");
-var TdxApi = require("nqm-api-tdx");
+var TDXAPI = require("nqm-api-tdx");
 var _ = require("lodash");
 var base64 = require("node-base64-image");
 var fs = require("fs");
