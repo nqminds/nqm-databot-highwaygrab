@@ -1,99 +1,101 @@
-"use strict"
-var request = require("request-promise");
-var TdxApi = require("nqm-api-tdx");
-var debug = require("debug")("highGrab");
-var config = require("./config");
-var _ = require("lodash");
-var base64 = require("node-base64-image");
-var fs = require("fs");
-var Promise = require("bluebird");
 
-var TDXconfig = {
-  "commandHost": "https://cmd.nq-m.com",
-  "queryHost": "https://q.nq-m.com"
-};
-
-var tdxAPI = new TdxApi(TDXconfig);
-Promise.promisifyAll(tdxAPI);
-Promise.promisifyAll(base64);
-
-
-tdxAPI.authenticate(config.shareId,config.shareKey,function(err,accessToken){
-  if(err)
-    throw err;
-  else{
-    insertData(tdxAPI,config);
-  }
-});
-
-function insertData(tdxApi,config){
-  let options = {
-    string:true,
-    local: false
-  }
-  let cameraArray = [];
-  var req = function(){
-    return tdxApi.getDatasetDataAsync(config.packageParams.cameraTable, null, null, null)
-      .then((response) => {
-        debug("Retrived data length is "+response.data.length);
-        return Promise.all(_.map(response.data,(val,i) => {
-          return base64.encodeAsync(val.src,options)
-          .then((result) => {
-            var cameraObj = {
-              ID:i,
-              latitude:val.latitude,
-              longitude:val.longitude,
-              base64String:result
-            }
-            return (cameraObj);
-          })
-          .catch((err) => {
-            debug("catch err with base64 %s",err);
-          })
-        }))
-      })
-      .then((result) => {
-        _.forEach(result,(val) => {
-          cameraArray.push(val);
-        });
-        debug("get cameraArray length is "+ cameraArray.length);
-        return tdxApi.updateDatasetDataAsync(config.packageParams.cameraLatest,cameraArray,true);
-      })
-      .catch((err) => {
-        debug("get dataset data err "+err);
-      })
-  }
-  var timer = setInterval(() => {
-    req().then((result) => {
-      debug(result);
-    })
-  },config,packageParams,timerFrequency);
-}
-
-/**
- * Main databot entry function:
- * @param {Object} input schema.
- * @param {Object} output functions.
- * @param {Object} context of the databot.
- */
-function databot(input, output, context) {
+module.exports = (configpath) => {
     "use strict"
-    output.progress(0);
 
-    var tdxApi = new TDXAPI({
-        commandHost: context.commandHost,
-        queryHost: context.queryHost,
-        accessTokenTTL: context.packageParams.accessTokenTTL
-    });
+    var debugLog = require("debug")("nqm-databot");
+    var util = require("util");
+    var fs = require("fs");
+    var assert = require("assert");
+    var _ = require("lodash");
+    var TDXAPI = require("nqm-api-tdx");
+    var Promise = require("bluebird");
 
-    Promise.promisifyAll(tdxApi);
+    var config = require(configpath);
 
-    tdxApi.authenticate(context.shareKeyId, context.shareKeySecret, function (err, accessToken) {
-        if (err) {
-            output.error("%s", JSON.stringify(err));
-            process.exit(1);
+    var outputType = {
+        DEBUG: 1, // STDOUT - diagnostic fed back to TDX
+        ERROR: 2, // STDERR - fed back to TDX
+        RESULT: 3, // Result update to the TDX
+        PROGRESS: 4, // Progress updates to TDX
+    };
+
+    var _writeOutput = function (fd, msg) {
+        msg = typeof msg !== "undefined" ? msg : "";
+        var buf = new Buffer(msg.toString());
+        fs.writeSync(fd, buf, 0, buf.length);
+    };
+
+    var writeDebug = function () {
+        var msg = util.format.apply(util, arguments);
+        return debugLog(msg);
+    };
+
+    var writeError = function () {
+        var msg = util.format.apply(util, arguments);
+        return _writeOutput(outputType.ERROR, msg + "\n");
+    };
+
+    var writeResult = function (obj) {
+        if (typeof obj !== "object") {
+            return writeError("output.result - expected type 'object', got type '%s'", typeof obj);
         } else {
-            GrabTraffic(tdxApi, output, context.packageParams);
+            return debugLog(JSON.stringify(obj) + "\n");
         }
-    });
+    };
+
+    var writeProgress = function (progress) {
+        assert(_.isNumber(progress));
+        return _writeOutput(outputType.DEBUG, "Progress:"+progress.toString() + "\n");
+    };
+
+
+    var context;
+    var output = {
+        debug: writeDebug,
+        progress: writeProgress,
+        error: writeError,
+        result: writeResult
+    };
+
+    var readAndRun = function (cb) {
+        if (typeof cb !== "function") {
+            throw new Error("input.read - callback required");
+        }
+        var context = {
+            "instanceId":config.instanceId,
+            "instanceName":config.instanceName,
+            "instancePort":config.instancePort,
+            "instanceAuthKey":config.instanceAuthKey,
+            "authToken":config.authToken,
+            "outputSchema":config.outputSchema,
+            "chunkNumber":config.chunkNumber,
+            "chunkTotal":config.chunkTotal,
+            "packageParams":config.packageParams,
+            "commandHost":config.commandHost,
+            "queryHost":config.queryHost,
+            "tdxApi":null,
+            "shareKeyId":config.shareKeyId,
+            "shareKeySecret":config.shareKeySecret
+        };
+
+        // Initialise a tdx api instance
+        context.tdxApi = new TDXAPI({
+            commandHost: context.commandHost,
+            queryHost: context.queryHost,
+            accessToken: context.authToken
+        });
+        Promise.promisifyAll(context.tdxApi);
+
+        context.tdxApi.authenticate(config.shareKeyId, config.shareKeySecret, function(err, accessToken){
+            if(err) throw err;
+            else {
+                context.authToken = accessToken;
+                cb(config.inputSchema, output, context);
+            }
+        });
+    }
+
+    return {
+        pipe: readAndRun
+    };
 }
