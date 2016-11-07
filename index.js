@@ -6,6 +6,7 @@
  */
 
 function GrabHighway(tdxApi,packageParams){
+  "use strict"
   let options = {
     string:true,
     local: false
