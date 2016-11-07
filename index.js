@@ -44,14 +44,14 @@ function GrabHighway(tdxApi,packageParams){
       })
   }
   var computing = false;
-  var timer = setInterval(() => {
-    if(!computing){
+  //var timer = setInterval(() => {
+    //if(!computing){
       req().then((result) => {
         output.debug(result);
         computing = false;
       });
-    }
-  },packageParams.timerFrequency);
+    //}
+  //},packageParams.timerFrequency);
 }
 
 /**
