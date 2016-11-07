@@ -5,7 +5,7 @@
  * @param {Object} packageParams of the databot.
  */
 
-function GrabHighway(tdxApi,packageParams){
+function GrabHighway(tdxApi,output,packageParams){
   "use strict"
   let options = {
     string:true,
