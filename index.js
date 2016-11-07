@@ -8,34 +8,29 @@ var base64 = require("node-base64-image");
 var fs = require("fs");
 var Promise = require("bluebird");
 
-var TDXconfig = {
-  "commandHost": "https://cmd.nq-m.com",
-  "queryHost": "https://q.nq-m.com"
-};
-
-var tdxAPI = new TdxApi(TDXconfig);
-Promise.promisifyAll(tdxAPI);
+// var tdxAPI = new TdxApi(TDXconfig);
+// Promise.promisifyAll(tdxAPI);
 Promise.promisifyAll(base64);
+//
+//
+// tdxAPI.authenticate(config.shareId,config.shareKey,function(err,accessToken){
+//   if(err)
+//     throw err;
+//   else{
+//     insertData(tdxAPI,config);
+//   }
+// });
 
-
-tdxAPI.authenticate(config.shareId,config.shareKey,function(err,accessToken){
-  if(err)
-    throw err;
-  else{
-    insertData(tdxAPI,config);
-  }
-});
-
-function insertData(tdxApi,config){
+function GrabHighway(tdxApi,packageParams){
   let options = {
     string:true,
     local: false
   }
   let cameraArray = [];
   var req = function(){
-    return tdxApi.getDatasetDataAsync(config.packageParams.cameraTable, null, null, null)
+    return tdxApi.getDatasetDataAsync(packageParams.cameraTable, null, null, null)
       .then((response) => {
-        debug("Retrived data length is "+response.data.length);
+        output.debug("Retrived data length is "+response.data.length);
         return Promise.all(_.map(response.data,(val,i) => {
           return base64.encodeAsync(val.src,options)
           .then((result) => {
@@ -48,7 +43,7 @@ function insertData(tdxApi,config){
             return (cameraObj);
           })
           .catch((err) => {
-            debug("catch err with base64 %s",err);
+            output.debug("catch err with base64 %s",err);
           })
         }))
       })
@@ -56,18 +51,18 @@ function insertData(tdxApi,config){
         _.forEach(result,(val) => {
           cameraArray.push(val);
         });
-        debug("get cameraArray length is "+ cameraArray.length);
-        return tdxApi.updateDatasetDataAsync(config.packageParams.cameraLatest,cameraArray,true);
+        output.debug("get cameraArray length is "+ cameraArray.length);
+        return tdxApi.updateDatasetDataAsync(packageParams.cameraLatest,cameraArray,true);
       })
       .catch((err) => {
-        debug("get dataset data err "+err);
+        output.debug("get dataset data err "+err);
       })
   }
   var timer = setInterval(() => {
     req().then((result) => {
-      debug(result);
+      output.debug(result);
     })
-  },config,packageParams,timerFrequency);
+  },packageParams.timerFrequency);
 }
 
 /**
@@ -93,7 +88,7 @@ function databot(input, output, context) {
             output.error("%s", JSON.stringify(err));
             process.exit(1);
         } else {
-            GrabTraffic(tdxApi, output, context.packageParams);
+            GrabHighway(tdxApi, output, context.packageParams);
         }
     });
 }
