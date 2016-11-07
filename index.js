@@ -43,10 +43,14 @@ function GrabHighway(tdxApi,packageParams){
         output.debug("get dataset data err "+err);
       })
   }
+  var computing = false;
   var timer = setInterval(() => {
-    req().then((result) => {
-      output.debug(result);
-    })
+    if(!computing){
+      req().then((result) => {
+        output.debug(result);
+        computing = false;
+      });
+    }
   },packageParams.timerFrequency);
 }
 
