@@ -77,7 +77,7 @@ function databot(input, output, context) {
     });
 }
 
-"use strict"
+
 var request = require("request-promise");
 var TdxApi = require("nqm-api-tdx");
 var _ = require("lodash");
