@@ -11,7 +11,6 @@ function GrabHighway(tdxApi,output,packageParams){
     string:true,
     local: false
   }
-  let count = 0;
   var req = function(){
     var cameraArray = [];
     return tdxApi.getDatasetDataAsync(packageParams.cameraTable, null, null, null)
@@ -19,7 +18,6 @@ function GrabHighway(tdxApi,output,packageParams){
         output.debug("Retrived data length is "+response.data.length);
         let timestamp = Date.now();
         return Promise.all(_.map(response.data,(val,i) => {
-
           try{
             fs.readdirSync(path.join(__dirname,String(val.ID)+"-imgs"));
           }catch(e){
@@ -44,10 +42,15 @@ function GrabHighway(tdxApi,output,packageParams){
           cameraArray.push(val);
           var fileName = val.ID+"-"+val.timestamp+"-"+"img.jpg";
           var pathName = path.join(__dirname,path.join(String(val.ID)+"-imgs",fileName));
-          fs.writeFileSync(pathName,val.base64String,{encoding:"base64"});
+          var filesArray = fs.readdirSync(path.join(__dirname,String(val.ID)+"-imgs"));
+          if(filesArray.length > 4){
+            _.forEach(filesArray,(file) => {
+              fs.unlinkSync(path.join(__dirname,path.join(String(val.ID)+"-imgs",file)));
+            });
+          }
+          //fs.writeFileSync(pathName,val.base64String,{encoding:"base64"});
         });
         output.debug("get cameraArray length is "+ cameraArray.length);
-        count +=1;
         return tdxApi.updateDatasetDataAsync(packageParams.cameraLive,cameraArray,true);
       })
       .catch((err) => {
@@ -55,19 +58,19 @@ function GrabHighway(tdxApi,output,packageParams){
       })
   }
   var computing = false;
-  req().then((result) => {
-    output.debug(result);
-  })
-  // var timer = setInterval(() => {
-  //   if(!computing){
-  //     computing = true;
-  //     output.debug("now computing is "+computing);
-  //     req().then((result) => {
-  //       output.debug(result);
-  //       computing = false;
-  //     });
-  //   }
-  // },packageParams.timerFrequency);
+  // req().then((result) => {
+  //   output.debug(result);
+  // })
+  var timer = setInterval(() => {
+    if(!computing){
+      computing = true;
+      output.debug("now computing is "+computing);
+      req().then((result) => {
+        output.debug(result);
+        computing = false;
+      });
+    }
+  },packageParams.timerFrequency);
 }
 
 /**
@@ -87,10 +90,41 @@ function databot(input, output, context) {
     });
 
     Promise.promisifyAll(tdxApi);
+    const restify = require('restify');
+
+    const server = restify.createServer({
+      name: 'myapp',
+      version: '1.0.0'
+    });
+
+    server.use(restify.acceptParser(server.acceptable));
+    server.use(restify.queryParser());
+    server.use(restify.bodyParser());
+
+    server.get("/",function(req,res,next){
+      res.send("localhost:3003");
+    })
+
+    server.get('/img/:folder/:timestamp', function (req, res, next) {
+      var folderName = req.params.folder;
+      var filePath = path.join(__dirname,path.join(folderName+"-imgs",folderName+"-"+req.params.timestamp+"-img.jpg"));
+      var readStream = fs.createReadStream(filePath,{encoding:"base64"});
+      var stat = fs.statSync(filePath);
+      //var body = '<html><body><img src=data:image/jpeg;base64,'+readStream+'></img></body></html>';
+      res.writeHead(200, {
+        'Content-Length':stat.size,
+        'Content-Type': 'img/jpg'
+      });
+      readStream.pipe(res);
+    });
+
+    server.listen(3100, function () {
+      output.debug('%s listening at %s', server.name, server.url);
+    });
 
     tdxApi.authenticate(context.shareKeyId, context.shareKeySecret, function (err, accessToken) {
         if (err) {
-            output.error("%s", JSON.stringify(err));
+            output.debug("%s", JSON.stringify(err));
             process.exit(1);
         } else {
             GrabHighway(tdxApi, output, context.packageParams);
