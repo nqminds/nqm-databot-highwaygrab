@@ -11,11 +11,13 @@ function GrabHighway(tdxApi,output,packageParams){
     string:true,
     local: false
   }
+  let count = 0;
   var req = function(){
     var cameraArray = [];
     return tdxApi.getDatasetDataAsync(packageParams.cameraTable, null, null, null)
       .then((response) => {
         output.debug("Retrived data length is "+response.data.length);
+        let timestamp = Date.now();
         return Promise.all(_.map(response.data,(val,i) => {
 
           try{
@@ -26,8 +28,9 @@ function GrabHighway(tdxApi,output,packageParams){
           return base64.encodeAsync(val.src,options)
           .then((result) => {
             var cameraObj = {
-              ID:i,
-              timestamp:new Date()
+              ID:val.ID,
+              timestamp:timestamp,
+              base64String:result
             }
             return (cameraObj);
           })
@@ -39,25 +42,32 @@ function GrabHighway(tdxApi,output,packageParams){
       .then((result) => {
         _.forEach(result,(val) => {
           cameraArray.push(val);
+          var fileName = val.ID+"-"+val.timestamp+"-"+"img.jpg";
+          var pathName = path.join(__dirname,path.join(String(val.ID)+"-imgs",fileName));
+          fs.writeFileSync(pathName,val.base64String,{encoding:"base64"});
         });
         output.debug("get cameraArray length is "+ cameraArray.length);
-        return tdxApi.updateDatasetDataAsync(packageParams.cameraLatest,cameraArray,true);
+        count +=1;
+        return tdxApi.updateDatasetDataAsync(packageParams.cameraLive,cameraArray,true);
       })
       .catch((err) => {
         output.debug("get dataset data err "+err);
       })
   }
   var computing = false;
-  var timer = setInterval(() => {
-    if(!computing){
-      computing = true;
-      output.debug("now computing is "+computing);
-      req().then((result) => {
-        output.debug(result);
-        computing = false;
-      });
-    }
-  },packageParams.timerFrequency);
+  req().then((result) => {
+    output.debug(result);
+  })
+  // var timer = setInterval(() => {
+  //   if(!computing){
+  //     computing = true;
+  //     output.debug("now computing is "+computing);
+  //     req().then((result) => {
+  //       output.debug(result);
+  //       computing = false;
+  //     });
+  //   }
+  // },packageParams.timerFrequency);
 }
 
 /**
