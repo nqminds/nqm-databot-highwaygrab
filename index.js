@@ -6,7 +6,7 @@
  */
 
 function GrabHighway(tdxApi,output,packageParams){
-  "use strict"
+    "use strict"
   let options = {
     string:true,
     local: false
@@ -17,13 +17,17 @@ function GrabHighway(tdxApi,output,packageParams){
       .then((response) => {
         output.debug("Retrived data length is "+response.data.length);
         return Promise.all(_.map(response.data,(val,i) => {
+
+          try{
+            fs.readdirSync(path.join(__dirname,String(val.ID)+"-imgs"));
+          }catch(e){
+            fs.mkdirSync(path.join(__dirname,String(val.ID)+"-imgs"));
+          }
           return base64.encodeAsync(val.src,options)
           .then((result) => {
             var cameraObj = {
               ID:i,
-              latitude:val.latitude,
-              longitude:val.longitude,
-              base64String:result
+              timestamp:new Date()
             }
             return (cameraObj);
           })
@@ -33,7 +37,6 @@ function GrabHighway(tdxApi,output,packageParams){
         }))
       })
       .then((result) => {
-
         _.forEach(result,(val) => {
           cameraArray.push(val);
         });
@@ -92,6 +95,7 @@ var _ = require("lodash");
 var base64 = require("node-base64-image");
 var fs = require("fs");
 var Promise = require("bluebird");
+var path = require("path");
 
 // var tdxAPI = new TdxApi(TDXconfig);
 // Promise.promisifyAll(tdxAPI);
