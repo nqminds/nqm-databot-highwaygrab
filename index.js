@@ -123,6 +123,7 @@ function databot(input, output, context) {
     server.get('/img/:folder/:timestampIndex', function (req, res, next) {
 
       var folderName = req.params.folder;
+      output.debug("timestampArray"+(timestampArray.length-req.params.timestampIndex)+"is"+timestampArray[timestampArray.length-req.params.timestampIndex]);
       var fileName = folderName+"-"+timestampArray[timestampArray.length-req.params.timestampIndex]+"-img.jpg";
       var filePath = path.join(__dirname,path.join(folderName+"-imgs",fileName));
 
