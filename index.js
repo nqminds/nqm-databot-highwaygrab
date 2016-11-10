@@ -13,10 +13,14 @@ function GrabHighway(tdxApi,output,packageParams){
   }
   var req = function(){
     var cameraArray = [];
+    /*
+      array timestamp each time req() is called
+     */
+    let timestamp = Date.now();
+
     return tdxApi.getDatasetDataAsync(packageParams.cameraTable, null, null, null)
       .then((response) => {
         output.debug("Retrived data length is "+response.data.length);
-        let timestamp = Date.now();
         return Promise.all(_.map(response.data,(val,i) => {
           try{
             fs.readdirSync(path.join(__dirname,String(val.ID)+"-imgs"));
@@ -38,29 +42,40 @@ function GrabHighway(tdxApi,output,packageParams){
         }))
       })
       .then((result) => {
+        var updateArray = [];
         _.forEach(result,(val) => {
           cameraArray.push(val);
           var fileName = val.ID+"-"+val.timestamp+"-"+"img.jpg";
           var pathName = path.join(__dirname,path.join(String(val.ID)+"-imgs",fileName));
           var filesArray = fs.readdirSync(path.join(__dirname,String(val.ID)+"-imgs"));
-          if(filesArray.length > 4){
+          if(filesArray.length > 10){
             _.forEach(filesArray,(file) => {
               fs.unlinkSync(path.join(__dirname,path.join(String(val.ID)+"-imgs",file)));
             });
+            timestampArray = [];
           }
-          //fs.writeFileSync(pathName,val.base64String,{encoding:"base64"});
+          /*
+            writeSync to file system
+          */
+          fs.writeFileSync(pathName,val.base64String,{encoding:"base64"});
         });
-        output.debug("get cameraArray length is "+ cameraArray.length);
-        return tdxApi.updateDatasetDataAsync(packageParams.cameraLive,cameraArray,true);
+        /*
+          updateArray eliminate base64String
+         */
+        updateArray = _.map(cameraArray,(o) => {
+          o = _.omit(o,"base64String");
+          return o;
+        })
+        output.debug("get cameraArray length is "+ updateArray.length);
+        timestampArray.push(timestamp);
+        return tdxApi.updateDatasetDataAsync(packageParams.cameraLive,updateArray,true);
       })
       .catch((err) => {
         output.debug("get dataset data err "+err);
       })
   }
   var computing = false;
-  // req().then((result) => {
-  //   output.debug(result);
-  // })
+
   var timer = setInterval(() => {
     if(!computing){
       computing = true;
@@ -105,17 +120,24 @@ function databot(input, output, context) {
       res.send("localhost:3003");
     })
 
-    server.get('/img/:folder/:timestamp', function (req, res, next) {
+    server.get('/img/:folder/:timestampIndex', function (req, res, next) {
+
       var folderName = req.params.folder;
-      var filePath = path.join(__dirname,path.join(folderName+"-imgs",folderName+"-"+req.params.timestamp+"-img.jpg"));
+      var fileName = folderName+"-"+timestampArray[timestampArray.length-req.params.timestampIndex]+"-img.jpg";
+      var filePath = path.join(__dirname,path.join(folderName+"-imgs",fileName));
+
+      output.debug("get file %s",filePath);
+
       var readStream = fs.createReadStream(filePath,{encoding:"base64"});
       var stat = fs.statSync(filePath);
-      //var body = '<html><body><img src=data:image/jpeg;base64,'+readStream+'></img></body></html>';
+      var imgfile = new Buffer(fs.readFileSync(filePath),"base64");
       res.writeHead(200, {
-        'Content-Length':stat.size,
-        'Content-Type': 'img/jpg'
+        'Content-Type':'image/png',
+        'Content-Length':imgfile.length       
       });
-      readStream.pipe(res);
+      res.end(imgfile);
+      //output.debug(readStream);
+      //readStream.pipe(res);
     });
 
     server.listen(3100, function () {
@@ -140,6 +162,7 @@ var base64 = require("node-base64-image");
 var fs = require("fs");
 var Promise = require("bluebird");
 var path = require("path");
+var timestampArray = [];
 
 // var tdxAPI = new TdxApi(TDXconfig);
 // Promise.promisifyAll(tdxAPI);
