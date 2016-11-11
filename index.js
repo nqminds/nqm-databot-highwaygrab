@@ -48,11 +48,13 @@ function GrabHighway(tdxApi,output,packageParams){
           var fileName = val.ID+"-"+val.timestamp+"-"+"img.jpg";
           var pathName = path.join(__dirname,path.join(String(val.ID)+"-imgs",fileName));
           var filesArray = fs.readdirSync(path.join(__dirname,String(val.ID)+"-imgs"));
-          if(filesArray.length > 10){
-            _.forEach(filesArray,(file) => {
-              fs.unlinkSync(path.join(__dirname,path.join(String(val.ID)+"-imgs",file)));
-            });
-            timestampArray = [];
+          if(filesArray.length > 10 && timestampArray > 10){
+            var unlinkIndex = timestampArray[0];
+            timestampArray.shift();
+            output.debug("timestampArray length is"+timestampArray.length);
+            if(unlinkIndex != undefined){
+              fs.unlinkSync(path.join(__dirname,path.join(String(val.ID)+"-imgs",String(val.ID)+"-"+unlinkIndex+"-img.jpg")));
+            }
           }
           /*
             writeSync to file system
@@ -68,6 +70,7 @@ function GrabHighway(tdxApi,output,packageParams){
         })
         output.debug("get cameraArray length is "+ updateArray.length);
         timestampArray.push(timestamp);
+        output.debug("timestampArray length is"+timestampArray.length);
         return tdxApi.updateDatasetDataAsync(packageParams.cameraLive,updateArray,true);
       })
       .catch((err) => {
@@ -123,20 +126,31 @@ function databot(input, output, context) {
     server.get('/img/:folder/:timestampIndex', function (req, res, next) {
 
       var folderName = req.params.folder;
-      output.debug("timestampArray"+(timestampArray.length-req.params.timestampIndex)+"is"+timestampArray[timestampArray.length-req.params.timestampIndex]);
-      var fileName = folderName+"-"+timestampArray[timestampArray.length-req.params.timestampIndex]+"-img.jpg";
-      var filePath = path.join(__dirname,path.join(folderName+"-imgs",fileName));
+      var timestampValue = timestampArray[timestampArray.length-req.params.timestampIndex];
+      output.debug("length of timestampArray is "+timestampArray.length);
+      output.debug(timestampValue);
+      if(timestampValue){
+        var fileName = folderName+"-"+timestampValue+"-img.jpg";
+        var filePath = path.join(__dirname,path.join(folderName+"-imgs",fileName));
 
-      output.debug("get file %s",filePath);
+        output.debug("get file %s",filePath);
 
-      var readStream = fs.createReadStream(filePath,{encoding:"base64"});
-      var stat = fs.statSync(filePath);
-      var imgfile = new Buffer(fs.readFileSync(filePath),"base64");
-      res.writeHead(200, {
-        'Content-Type':'image/png',
-        'Content-Length':imgfile.length       
-      });
-      res.end(imgfile);
+        var readStream = fs.createReadStream(filePath,{encoding:"base64"});
+        var stat = fs.statSync(filePath);
+        var imgfile = new Buffer(fs.readFileSync(filePath),"base64");
+        var sendObj = {
+          ID:folderName,
+          timestamp:timestampValue,
+          base64String: imgfile
+        }
+        res.writeHead(200, {
+          'Content-Type':'application/json',
+          'Content-Length': JSON.stringify(sendObj).length     
+        });
+        res.end(JSON.stringify(sendObj));
+      }else{
+        res.end("NO IMAGE");
+      }
       //output.debug(readStream);
       //readStream.pipe(res);
     });
