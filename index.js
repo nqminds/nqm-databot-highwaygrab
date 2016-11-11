@@ -48,7 +48,7 @@ function GrabHighway(tdxApi,output,packageParams){
           var fileName = val.ID+"-"+val.timestamp+"-"+"img.jpg";
           var pathName = path.join(__dirname,path.join(String(val.ID)+"-imgs",fileName));
           var filesArray = fs.readdirSync(path.join(__dirname,String(val.ID)+"-imgs"));
-          if(filesArray.length > 10 && timestampArray > 10){
+          if(filesArray.length > 10 && timestampArray.length > 10){
             var unlinkIndex = timestampArray[0];
             timestampArray.shift();
             output.debug("timestampArray length is"+timestampArray.length);
