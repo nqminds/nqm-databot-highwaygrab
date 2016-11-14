@@ -31,6 +31,7 @@ function GrabHighway(tdxApi,output,packageParams){
           .then((result) => {
             var cameraObj = {
               ID:val.ID,
+              DictIndex:timestampArray.length,
               timestamp:timestamp,
               base64String:result
             }
@@ -126,7 +127,7 @@ function databot(input, output, context) {
     server.get('/img/:folder/:timestampIndex', function (req, res, next) {
 
       var folderName = req.params.folder;
-      var timestampValue = timestampArray[timestampArray.length-req.params.timestampIndex];
+      var timestampValue = timestampArray[req.params.timestampIndex];
       output.debug("length of timestampArray is "+timestampArray.length);
       output.debug(timestampValue);
       if(timestampValue){
