@@ -154,9 +154,7 @@ function databot(input, output, context) {
       //readStream.pipe(res);
     });
 
-    server.listen(context.instancePort, function () {
-      output.debug('%s listening at %s', server.name, server.url);
-    });
+    server.listen(context.instancePort);
 
     tdxApi.authenticate(context.shareKeyId, context.shareKeySecret, function (err, accessToken) {
         if (err) {
