@@ -157,7 +157,7 @@ function databot(input, output, context) {
       //readStream.pipe(res);
     });
 
-    server.listen(3100, function () {
+    server.listen(context.instancePort, function () {
       output.debug('%s listening at %s', server.name, server.url);
     });
 
