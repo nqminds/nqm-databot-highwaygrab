@@ -112,10 +112,7 @@ function databot(input, output, context) {
     Promise.promisifyAll(tdxApi);
     const restify = require('restify');
 
-    const server = restify.createServer({
-      name: 'myapp',
-      version: '1.0.0'
-    });
+    const server = restify.createServer();
 
     server.use(restify.acceptParser(server.acceptable));
     server.use(restify.queryParser());
