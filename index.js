@@ -90,7 +90,9 @@ function GrabHighway(tdxApi,output,packageParams){
         computing = false;
       });
     }
-  },packageParams.timerFrequency);
+  },packageParams.timerFrequency,function(){
+    output.debug("server started");
+  });
 }
 
 /**
@@ -122,39 +124,39 @@ function databot(input, output, context) {
       res.send("localhost:3003");
     })
 
-    server.get('/img/:folder/:timestampIndex', function (req, res, next) {
+    // server.get('/img/:folder/:timestampIndex', function (req, res, next) {
 
-      var folderName = req.params.folder;
-      var timestampValue = timestampArray[req.params.timestampIndex];
-      output.debug("length of timestampArray is "+timestampArray.length);
-      output.debug(timestampValue);
-      if(timestampValue){
-        var fileName = folderName+"-"+timestampValue+"-img.jpg";
-        var filePath = path.join(__dirname,path.join(folderName+"-imgs",fileName));
+    //   var folderName = req.params.folder;
+    //   var timestampValue = timestampArray[req.params.timestampIndex];
+    //   output.debug("length of timestampArray is "+timestampArray.length);
+    //   output.debug(timestampValue);
+    //   if(timestampValue){
+    //     var fileName = folderName+"-"+timestampValue+"-img.jpg";
+    //     var filePath = path.join(__dirname,path.join(folderName+"-imgs",fileName));
 
-        output.debug("get file %s",filePath);
+    //     output.debug("get file %s",filePath);
 
-        var readStream = fs.createReadStream(filePath,{encoding:"base64"});
-        var stat = fs.statSync(filePath);
-        var imgfile = new Buffer(fs.readFileSync(filePath),"base64");
-        var sendObj = {
-          ID:folderName,
-          timestamp:timestampValue,
-          base64String: imgfile
-        }
-        res.writeHead(200, {
-          'Content-Type':'application/json',
-          'Content-Length': JSON.stringify(sendObj).length     
-        });
-        res.end(JSON.stringify(sendObj));
-      }else{
-        res.end("NO IMAGE");
-      }
-      //output.debug(readStream);
-      //readStream.pipe(res);
-    });
+    //     var readStream = fs.createReadStream(filePath,{encoding:"base64"});
+    //     var stat = fs.statSync(filePath);
+    //     var imgfile = new Buffer(fs.readFileSync(filePath),"base64");
+    //     var sendObj = {
+    //       ID:folderName,
+    //       timestamp:timestampValue,
+    //       base64String: imgfile
+    //     }
+    //     res.writeHead(200, {
+    //       'Content-Type':'application/json',
+    //       'Content-Length': JSON.stringify(sendObj).length     
+    //     });
+    //     res.end(JSON.stringify(sendObj));
+    //   }else{
+    //     res.end("NO IMAGE");
+    //   }
+    //   //output.debug(readStream);
+    //   //readStream.pipe(res);
+    // });
 
-    server.listen(context.instancePort);
+    // server.listen(context.instancePort);
 
     tdxApi.authenticate(context.shareKeyId, context.shareKeySecret, function (err, accessToken) {
         if (err) {
