@@ -11,6 +11,7 @@ function GrabHighway(tdxApi,output,packageParams){
     string:true,
     local: false
   }
+  //fs.rmdirSync(path.join(__dirname,"*-imgs"));
   var req = function(){
     var cameraArray = [];
     /*
@@ -31,7 +32,7 @@ function GrabHighway(tdxApi,output,packageParams){
           .then((result) => {
             var cameraObj = {
               ID:val.ID,
-              DictIndex:timestampArray.length,
+              DictIndex:timestampArray.length>(packageParams.imgLength-1)?(packageParams.imgLength-1):timestampArray.length,
               timestamp:timestamp,
               base64String:result
             }
@@ -49,7 +50,7 @@ function GrabHighway(tdxApi,output,packageParams){
           var fileName = val.ID+"-"+val.timestamp+"-"+"img.jpg";
           var pathName = path.join(__dirname,path.join(String(val.ID)+"-imgs",fileName));
           var filesArray = fs.readdirSync(path.join(__dirname,String(val.ID)+"-imgs"));
-          if(filesArray.length > 10 && timestampArray.length > 10){
+          if(timestampArray.length >= packageParams.imgLength){
             var unlinkIndex = timestampArray[0];
             timestampArray.shift();
             output.debug("timestampArray length is"+timestampArray.length);
