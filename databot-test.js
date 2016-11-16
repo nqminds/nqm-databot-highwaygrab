@@ -12,7 +12,15 @@ module.exports = (configpath) => {
     var path = require("path");
     var mkdirp = require("mkdirp").sync;
 
-    var _resolvedDatabotStoragePath;
+    var _resolvedDatabotStoragePath = "./databot-file-store";
+    try {
+      fs.readdirSync(_resolvedDatabotStoragePath);
+    } catch (e) {
+      //console.log(e.errno);
+      if (e.errno === -2) {
+        fs.mkdirSync(_resolvedDatabotStoragePath);
+      }
+    }
 
     var config = require(configpath);
 

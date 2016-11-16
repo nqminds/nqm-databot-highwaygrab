@@ -34,10 +34,11 @@ module.exports = (function() {
       //console.log(e.errno);
       if (e.errno === -2) {
         fs.mkdirSync(imagesFolder);
+        output.debug("mkdir "+imagesFolder);
       }
     }
     var fileName = getImageFileName(val.ID, timestamp);
-    var pathName = path.join(folderName, fileName); 
+    var pathName = path.join(imagesFolder, fileName); 
     base64.encode(val.src, options, (error, result) => {
       if (error) {
         output.debug(error);
