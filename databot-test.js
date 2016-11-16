@@ -9,6 +9,10 @@ module.exports = (configpath) => {
     var _ = require("lodash");
     var TDXAPI = require("nqm-api-tdx");
     var Promise = require("bluebird");
+    var path = require("path");
+    var mkdirp = require("mkdirp").sync;
+
+    var _resolvedDatabotStoragePath;
 
     var config = require(configpath);
 
@@ -35,6 +39,12 @@ module.exports = (configpath) => {
         return _writeOutput(outputType.ERROR, msg + "\n");
     };
 
+    var writeAbort = function() {
+        var msg = util.format.apply(util, arguments);
+        _writeOutput(outputType.ERROR, msg + "\n");
+        process.exit(1);
+    }
+
     var writeResult = function (obj) {
         if (typeof obj !== "object") {
             return writeError("output.result - expected type 'object', got type '%s'", typeof obj);
@@ -48,13 +58,29 @@ module.exports = (configpath) => {
         return _writeOutput(outputType.DEBUG, "Progress:"+progress.toString() + "\n");
     };
 
+      var setFileStorePath = function(fileStorePath) {
+    if (!_resolvedDatabotStoragePath && fileStorePath) {
+      _resolvedDatabotStoragePath = path.resolve(__dirname,fileStorePath);
+      mkdirp(_resolvedDatabotStoragePath);    
+    }
+  };
+
+  var getFileStorePath = function(targetFile) {
+    if (!_resolvedDatabotStoragePath) {
+      writeAbort("getFileStorePath - store path not set");
+    } else {
+      return path.resolve(_resolvedDatabotStoragePath, targetFile);
+    }
+  }; 
 
     var context;
     var output = {
         debug: writeDebug,
         progress: writeProgress,
         error: writeError,
-        result: writeResult
+        result: writeResult,
+        getFileStorePath: getFileStorePath,
+        setFileStorePath: setFileStorePath
     };
 
     var readAndRun = function (cb) {
