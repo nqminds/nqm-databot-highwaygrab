@@ -34,11 +34,12 @@ module.exports = (function() {
       //console.log(e.errno);
       if (e.errno === -2) {
         fs.mkdirSync(imagesFolder);
-        output.debug("mkdir "+imagesFolder);
+        //output.debug("mkdir "+imagesFolder);
       }
     }
     var fileName = getImageFileName(val.ID, timestamp);
     var pathName = path.join(imagesFolder, fileName); 
+    
     base64.encode(val.src, options, (error, result) => {
       if (error) {
         output.debug(error);
@@ -55,10 +56,10 @@ module.exports = (function() {
           output.debug("timestampArray length is" + timestampArray.length);
           if (unlinkIndex) {
             const deleteFileName = getImageFileName(val.ID, unlinkIndex); 
-            fs.unlinkSync(path.join(folderName, deleteFileName));
+            fs.unlinkSync(path.join(pathName, deleteFileName));
           }
         }
-
+        //output.debug("save path is "+pathName);
         fs.writeFileSync(pathName, result, { encoding: "base64" });
         cameraArray.push(cameraObj);
 
@@ -142,29 +143,33 @@ module.exports = (function() {
     server.use(restify.acceptParser(server.acceptable));
     server.use(restify.queryParser());
     server.use(restify.bodyParser());
+    var fsoptions = {
+        flags: 'r',
+        defaultEncoding: 'base64',
+        fd: null,
+        mode: 0o666,
+        autoClose: true
+      };
 
     server.get("/", function (req, res) {
       res.send("running");
     });
 
     server.get('/img/:folder/:timestampIndex', function (req, res, next) {
-      var folderName = req.params.folder;
+      var folderName = getFolderName(req.params.folder);
       var timestampValue = timestampArray[req.params.timestampIndex];
+      const imagesFolder = output.getFileStorePath(folderName);
+      output.debug("imagesFolder is "+imagesFolder);
       output.debug("length of timestampArray is "+timestampArray.length);
       output.debug(timestampValue);
       if(timestampValue){
-        const fileName = getImageFileName(folderName, timestampValue);
-        const filePath = output.getFileStorePath(fileName);
+        const fileName = getImageFileName(req.params.folder, timestampValue);
+        output.debug("get fileName %s", fileName);
+        var filePath = path.join(imagesFolder, fileName); 
         output.debug("get file %s", filePath);
 
         var readStream = fs.createReadStream(filePath,fsoptions);
         var stat = fs.statSync(filePath);
-        var imgfile = new Buffer(fs.readFileSync(filePath),"base64");
-        var sendObj = {
-          ID:folderName,
-          timestamp:timestampValue,
-          base64String: imgfile
-        }
         res.writeHead(200, {
           'Content-Type':'image/gif',
           'Content-Length': stat.size     
