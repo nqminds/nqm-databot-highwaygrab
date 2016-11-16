@@ -152,10 +152,9 @@ module.exports = (function() {
       output.debug("length of timestampArray is "+timestampArray.length);
       output.debug(timestampValue);
       if(timestampValue){
-        var fileName = folderName+"-"+timestampValue+"-img.jpg";
-        var filePath = path.join(__dirname,path.join(folderName+"-imgs",fileName));
-
-        output.debug("get file %s",filePath);
+        const fileName = getImageFileName(folderName, timestampValue);
+        const filePath = output.getFileStorePath(fileName);
+        output.debug("get file %s", filePath);
 
         var readStream = fs.createReadStream(filePath,fsoptions);
         var stat = fs.statSync(filePath);
