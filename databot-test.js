@@ -69,6 +69,7 @@ module.exports = (configpath) => {
     if (!_resolvedDatabotStoragePath) {
       writeAbort("getFileStorePath - store path not set");
     } else {
+        //writeDebug("filestorepath "+_resolvedDatabotStoragePath);
       return path.resolve(_resolvedDatabotStoragePath, targetFile);
     }
   }; 
