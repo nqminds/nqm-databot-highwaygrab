@@ -78,6 +78,16 @@ module.exports = (function() {
    */
   function GrabHighway(tdxApi, output, packageParams) {
     let complete = false;
+    const storeFolder = output.getFileStorePath("./");
+    output.debug("storeFolder is "+storeFolder);
+    var targetRemoveFiles = fs.readdirSync(storeFolder);
+    for (var folder in targetRemoveFiles) {
+      var targetFolder = fs.readdirSync(storeFolder+"/"+targetRemoveFiles[folder]);
+      for(var files in targetFolder){
+        fs.unlinkSync(storeFolder+"/"+targetRemoveFiles[folder]+"/"+targetFolder[files]);
+      }
+      fs.rmdirSync(storeFolder+"/"+targetRemoveFiles[folder]);
+    }
 
     const req = function (cb) {
       /*
