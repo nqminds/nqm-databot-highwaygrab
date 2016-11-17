@@ -6,6 +6,7 @@ module.exports = (function() {
   const fs = require("fs");
   const path = require("path");
   const util = require("util");
+  const _ = require("lodash");
   var cameraArray = [];
   var timestampArray = [];
   let tdxApi = null;
@@ -45,18 +46,16 @@ module.exports = (function() {
         output.debug(error);
         cb(error, null, null);
       } else {
+        var DictIndex = timestampArray.length;
         if (timestampArray.length >= packageParams.imgLength) {
           var unlinkIndex = timestampArray[0];
-          timestampArray.shift();
-          output.debug("timestampArray length is" + timestampArray.length);
           if (unlinkIndex) {
-            const deleteFileName = getImageFileName(val.ID, unlinkIndex); 
-            fs.unlinkSync(path.join(imagesFolder, deleteFileName));
+            DictIndex -= 1;
           }
         }
         var cameraObj = {
           ID: val.ID,
-          DictIndex: timestampArray.length,
+          DictIndex: DictIndex,
           timestamp: timestamp
         };
         //output.debug("save path is "+pathName);
@@ -97,7 +96,19 @@ module.exports = (function() {
               output.debug(err);
             } else {
               if (next === false && next !== null && cameraObj !== null) {
+                if(timestampArray.length >= packageParams.imgLength){
+                  var unlinkIndex = timestampArray[0];
+                  timestampArray.shift();
+                  _.forEach(response.data,(val) => {
+                    const folderName = getFolderName(val.ID);
+                    const imagesFolder = output.getFileStorePath(folderName);
+                    const deleteFileName = getImageFileName(val.ID, unlinkIndex); 
+                    fs.unlinkSync(path.join(imagesFolder, deleteFileName));
+                  })
+                  output.debug("timestampArray length is" + timestampArray.length);
+                }
                 timestampArray.push(timestamp);
+                output.debug("timestampArray length is now" + timestampArray.length);
                 output.debug("update dataset with data length is " + cameraArray.length);
                 output.debug(tdxApi.updateDatasetDataAsync(packageParams.cameraLive, cameraArray, true));
                 cb(null);
