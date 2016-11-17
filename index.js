@@ -45,20 +45,20 @@ module.exports = (function() {
         output.debug(error);
         cb(error, null, null);
       } else {
-        var cameraObj = {
-          ID: val.ID,
-          DictIndex: timestampArray.length > (packageParams.imgLength - 1) ? (packageParams.imgLength - 1) : timestampArray.length,
-          timestamp: timestamp
-        };
         if (timestampArray.length >= packageParams.imgLength) {
           var unlinkIndex = timestampArray[0];
           timestampArray.shift();
           output.debug("timestampArray length is" + timestampArray.length);
           if (unlinkIndex) {
             const deleteFileName = getImageFileName(val.ID, unlinkIndex); 
-            fs.unlinkSync(path.join(pathName, deleteFileName));
+            fs.unlinkSync(path.join(imagesFolder, deleteFileName));
           }
         }
+        var cameraObj = {
+          ID: val.ID,
+          DictIndex: timestampArray.length,
+          timestamp: timestamp
+        };
         //output.debug("save path is "+pathName);
         fs.writeFileSync(pathName, result, { encoding: "base64" });
         cameraArray.push(cameraObj);
