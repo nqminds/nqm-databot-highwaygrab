@@ -1,5 +1,5 @@
 
-module.exports = (function() {
+module.exports = (function () {
   "use strict";
 
   const base64 = require("node-base64-image");
@@ -7,20 +7,25 @@ module.exports = (function() {
   const path = require("path");
   const util = require("util");
   const _ = require("lodash");
+  const Promise = require("bluebird");
+  const fse = require("fs-extra");
   var cameraArray = [];
   var timestampArray = [];
   let tdxApi = null;
   let output = null;
   let packageParams = null;
-  var fsoptions = {
-        flags: 'w',
-        defaultEncoding: 'base64',
-        fd: null,
-        mode: 0o666,
-        autoClose: true
-      };
 
-  function saveAndUpdate(dataArray, index, timestampArray, timestamp, packageParams, output,cb) {
+  //Promise.promisifyAll(fs);
+
+  var fsoptions = {
+    flags: 'w',
+    defaultEncoding: 'base64',
+    fd: null,
+    mode: 0o666,
+    autoClose: true
+  };
+
+  function saveAndUpdate(dataArray, index, timestampArray, timestamp, packageParams, output, cb) {
     let options = {
       string: true,
       local: false
@@ -29,48 +34,44 @@ module.exports = (function() {
     let val = dataArray[index];
     const folderName = getFolderName(val.ID);
     const imagesFolder = output.getFileStorePath(folderName);
-    try {
-      fs.readdirSync(imagesFolder);
-    } catch (e) {
-      //console.log(e.errno);
-      if (e.errno === -2) {
+    fs.readdir(imagesFolder, (err, files) => {
+      if (err) {
         fs.mkdirSync(imagesFolder);
-        //output.debug("mkdir "+imagesFolder);
       }
-    }
-    var fileName = getImageFileName(val.ID, timestamp);
-    var pathName = path.join(imagesFolder, fileName); 
-    
-    base64.encode(val.src, options, (error, result) => {
-      if (error) {
-        output.debug(error);
-        cb(error, null, null);
-      } else {
-        var DictIndex = timestampArray.length;
-        if (timestampArray.length >= packageParams.imgLength) {
-          var unlinkIndex = timestampArray[0];
-          if (unlinkIndex) {
-            DictIndex -= 1;
+      var fileName = getImageFileName(val.ID, timestamp);
+      var pathName = path.join(imagesFolder, fileName);
+
+      base64.encode(val.src, options, (error, result) => {
+        if (error) {
+          output.debug(error);
+          cb(error, null, null);
+        } else {
+          var DictIndex = timestampArray.length;
+          if (timestampArray.length >= packageParams.imgLength) {
+            var unlinkIndex = timestampArray[0];
+            if (unlinkIndex) {
+              DictIndex -= 1;
+            }
+          }
+          var cameraObj = {
+            ID: val.ID,
+            DictIndex: DictIndex,
+            timestamp: timestamp
+          };
+          //output.debug("save path is "+pathName);
+          fs.writeFileSync(pathName, result, { encoding: "base64" });
+          cameraArray.push(cameraObj);
+
+          // Why is this hard-coded? Shouldn't it be dataArray.length ?
+          if (index >= dataArray.length - 1) {
+            cb(null, cameraObj, false);
+            cameraArray = [];
+          } else {
+            saveAndUpdate(dataArray, index + 1, timestampArray, timestamp, packageParams, output, cb);
           }
         }
-        var cameraObj = {
-          ID: val.ID,
-          DictIndex: DictIndex,
-          timestamp: timestamp
-        };
-        //output.debug("save path is "+pathName);
-        fs.writeFileSync(pathName, result, { encoding: "base64" });
-        cameraArray.push(cameraObj);
-
-        // Why is this hard-coded? Shouldn't it be dataArray.length ?
-        if (index >= dataArray.length-1) {
-          cb(null, cameraObj, false);
-          cameraArray = [];
-        } else {
-          saveAndUpdate(dataArray, index + 1, timestampArray, timestamp, packageParams, output,cb);
-        }
-      }
-    });
+      });
+    })
   }
 
   /**
@@ -80,71 +81,77 @@ module.exports = (function() {
     let complete = false;
     const storeFolder = output.getFileStorePath("./");
     //output.debug("storeFolder is "+storeFolder);
-    var targetRemoveFiles = fs.readdirSync(storeFolder);
-    for (var folder in targetRemoveFiles) {
-      var targetFolder = fs.readdirSync(storeFolder+"/"+targetRemoveFiles[folder]);
-      for(var files in targetFolder){
-        fs.unlinkSync(storeFolder+"/"+targetRemoveFiles[folder]+"/"+targetFolder[files]);
-      }
-      fs.rmdirSync(storeFolder+"/"+targetRemoveFiles[folder]);
-    }
+    fse.emptyDir(storeFolder, function (err) {
+      if (err) {
+        output.debug(err);
+      } else {
+        const req = function (cb) {
+          /*
+            array timestamp each time req() is called
+          */
+          let timestamp = Date.now();
 
-    const req = function (cb) {
-      /*
-        array timestamp each time req() is called
-      */
-      let timestamp = Date.now();
-
-      tdxApi.getDatasetData(packageParams.cameraTable, null, null, null, (err, response) => {
-        if (err) {
-          output.debug(err);
-          cb(err);
-        } else {
-          //output.debug("Retrived data length is " + response.data.length);
-          saveAndUpdate(response.data, 0, timestampArray, timestamp, packageParams, output,function (err, cameraObj, next) {
+          tdxApi.getDatasetData(packageParams.cameraTable, null, null, null, (err, response) => {
             if (err) {
               output.debug(err);
+              cb(err);
             } else {
-              if (next === false && next !== null && cameraObj !== null) {
-                if(timestampArray.length >= packageParams.imgLength){
-                  var unlinkIndex = timestampArray[0];
-                  timestampArray.shift();
-                  _.forEach(response.data,(val) => {
-                    const folderName = getFolderName(val.ID);
-                    const imagesFolder = output.getFileStorePath(folderName);
-                    const deleteFileName = getImageFileName(val.ID, unlinkIndex); 
-                    fs.unlinkSync(path.join(imagesFolder, deleteFileName));
-                  })
-                  //output.debug("timestampArray length is" + timestampArray.length);
+              output.debug("Retrived data length is " + response.data.length);
+              saveAndUpdate(response.data, 0, timestampArray, timestamp, packageParams, output, function (err, cameraObj, next) {
+                if (err) {
+                  output.debug(err);
+                } else {
+                  if (next === false && next !== null && cameraObj !== null) {
+                    if (timestampArray.length >= packageParams.imgLength) {
+                      var unlinkIndex = timestampArray[0];
+                      timestampArray.shift();
+                      _.forEach(response.data, (val) => {
+                        const folderName = getFolderName(val.ID);
+                        const imagesFolder = output.getFileStorePath(folderName);
+                        const deleteFileName = getImageFileName(val.ID, unlinkIndex);
+                        fs.unlinkSync(path.join(imagesFolder, deleteFileName));
+                      })
+                      //output.debug("timestampArray length is" + timestampArray.length);
+                    }
+                    timestampArray.push(timestamp);
+                    //output.debug("timestampArray length is now" + timestampArray.length);
+                    //output.debug("update dataset with data length is " + cameraArray.length);
+                    tdxApi.updateDatasetDataAsync(packageParams.cameraLive, cameraArray, true)
+                    //output.debug(tdxApi.updateDatasetDataAsync(packageParams.cameraLive, cameraArray, true));
+                    cb(null);
+                  }
                 }
-                timestampArray.push(timestamp);
-                //output.debug("timestampArray length is now" + timestampArray.length);
-                //output.debug("update dataset with data length is " + cameraArray.length);
-                tdxApi.updateDatasetDataAsync(packageParams.cameraLive, cameraArray, true)
-                //output.debug(tdxApi.updateDatasetDataAsync(packageParams.cameraLive, cameraArray, true));
-                cb(null);
-              }
+              });
             }
           });
-        }
-      });
-    };
-
-    setInterval(() => {
-      if (!complete) {
-        complete = true;
-        req(function() {
-          complete = false;
-        });
+        };
+        setInterval(() => {
+          if (!complete) {
+            complete = true;
+            req(function () {
+              complete = false;
+            });
+          }
+        }, packageParams.timerFrequency);
       }
-    }, packageParams.timerFrequency);
+    })
+
+    // var targetRemoveFolderss = fs.readdirSync(storeFolder);
+    // for (var folder in targetRemoveFiles) {
+    //   var targetFiles = fs.readdirSync(storeFolder+"/"+targetRemoveFolders[folder]);
+    //   for(var files in targetFiles){
+    //     fs.unlinkSync(storeFolder+"/"+targetRemoveFolders[folder]+"/"+targetFiles[files]);
+    //   }
+    //   fs.rmdirSync(storeFolder+"/"+targetRemoveFolders[folder]);
+    // }
+
   }
 
-  const getFolderName = function(id) {
+  const getFolderName = function (id) {
     return util.format("%s-imgs", id);
   };
 
-  const getImageFileName = function(id, timestamp) {
+  const getImageFileName = function (id, timestamp) {
     return util.format("%s-%s-img.jpg", id, timestamp);
   };
 
@@ -166,12 +173,12 @@ module.exports = (function() {
     server.use(restify.queryParser());
     server.use(restify.bodyParser());
     var fsoptions = {
-        flags: 'r',
-        defaultEncoding: 'base64',
-        fd: null,
-        mode: 0o666,
-        autoClose: true
-      };
+      flags: 'r',
+      defaultEncoding: 'base64',
+      fd: null,
+      mode: 0o666,
+      autoClose: true
+    };
 
     server.get("/", function (req, res) {
       res.send("running");
@@ -184,30 +191,30 @@ module.exports = (function() {
       //output.debug("imagesFolder is "+imagesFolder);
       //output.debug("length of timestampArray is "+timestampArray.length);
       //output.debug(timestampValue);
-      if(timestampValue){
+      if (timestampValue) {
         const fileName = getImageFileName(req.params.folder, timestampValue);
         //output.debug("get fileName %s", fileName);
-        var filePath = path.join(imagesFolder, fileName); 
+        var filePath = path.join(imagesFolder, fileName);
         //output.debug("get file %s", filePath);
 
-        var readStream = fs.createReadStream(filePath,fsoptions);
+        var readStream = fs.createReadStream(filePath, fsoptions);
         var stat = fs.statSync(filePath);
         res.writeHead(200, {
-          'Content-Type':'image/gif',
-          'Content-Length': stat.size     
+          'Content-Type': 'image/gif',
+          'Content-Length': stat.size
         });
         readStream.pipe(res);
-      }else{
+      } else {
         res.end("NO IMAGE");
       }
       //output.debug(readStream);
-      
+
     });
     server.get('/id/:folder/:timestampIndex', function (req, res, next) {
       var timestampValue = timestampArray[req.params.timestampIndex];
       //output.debug("length of timestampArray is "+timestampArray.length);
       //output.debug(timestampValue);
-      if(timestampValue){
+      if (timestampValue) {
         var sendObj = {
           timestamp: timestampValue
         };
@@ -217,7 +224,7 @@ module.exports = (function() {
           "Content-Length": JSON.stringify(sendObj).length
         });
         res.end(JSON.stringify(sendObj));
-      }else{
+      } else {
         res.send("NO IMAGE");
       }
     })
@@ -238,4 +245,4 @@ module.exports = (function() {
 
   // Read any data passed from the process host.
   input.pipe(databot);
-}());
+} ());

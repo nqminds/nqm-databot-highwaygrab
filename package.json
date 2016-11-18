@@ -16,6 +16,7 @@
     "assert": "^1.4.1",
     "bluebird": "^3.4.6",
     "debug": "^2.2.0",
+    "fs-extra": "^1.0.0",
     "lodash": "^4.17.2",
     "node-base64-image": "^1.0.3",
     "nqm-api-tdx": "^0.1.20",
