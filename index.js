@@ -79,7 +79,7 @@ module.exports = (function() {
   function GrabHighway(tdxApi, output, packageParams) {
     let complete = false;
     const storeFolder = output.getFileStorePath("./");
-    output.debug("storeFolder is "+storeFolder);
+    //output.debug("storeFolder is "+storeFolder);
     var targetRemoveFiles = fs.readdirSync(storeFolder);
     for (var folder in targetRemoveFiles) {
       var targetFolder = fs.readdirSync(storeFolder+"/"+targetRemoveFiles[folder]);
@@ -100,7 +100,7 @@ module.exports = (function() {
           output.debug(err);
           cb(err);
         } else {
-          output.debug("Retrived data length is " + response.data.length);
+          //output.debug("Retrived data length is " + response.data.length);
           saveAndUpdate(response.data, 0, timestampArray, timestamp, packageParams, output,function (err, cameraObj, next) {
             if (err) {
               output.debug(err);
@@ -115,12 +115,13 @@ module.exports = (function() {
                     const deleteFileName = getImageFileName(val.ID, unlinkIndex); 
                     fs.unlinkSync(path.join(imagesFolder, deleteFileName));
                   })
-                  output.debug("timestampArray length is" + timestampArray.length);
+                  //output.debug("timestampArray length is" + timestampArray.length);
                 }
                 timestampArray.push(timestamp);
-                output.debug("timestampArray length is now" + timestampArray.length);
-                output.debug("update dataset with data length is " + cameraArray.length);
-                output.debug(tdxApi.updateDatasetDataAsync(packageParams.cameraLive, cameraArray, true));
+                //output.debug("timestampArray length is now" + timestampArray.length);
+                //output.debug("update dataset with data length is " + cameraArray.length);
+                tdxApi.updateDatasetDataAsync(packageParams.cameraLive, cameraArray, true)
+                //output.debug(tdxApi.updateDatasetDataAsync(packageParams.cameraLive, cameraArray, true));
                 cb(null);
               }
             }
@@ -180,14 +181,14 @@ module.exports = (function() {
       var folderName = getFolderName(req.params.folder);
       var timestampValue = timestampArray[req.params.timestampIndex];
       const imagesFolder = output.getFileStorePath(folderName);
-      output.debug("imagesFolder is "+imagesFolder);
-      output.debug("length of timestampArray is "+timestampArray.length);
-      output.debug(timestampValue);
+      //output.debug("imagesFolder is "+imagesFolder);
+      //output.debug("length of timestampArray is "+timestampArray.length);
+      //output.debug(timestampValue);
       if(timestampValue){
         const fileName = getImageFileName(req.params.folder, timestampValue);
-        output.debug("get fileName %s", fileName);
+        //output.debug("get fileName %s", fileName);
         var filePath = path.join(imagesFolder, fileName); 
-        output.debug("get file %s", filePath);
+        //output.debug("get file %s", filePath);
 
         var readStream = fs.createReadStream(filePath,fsoptions);
         var stat = fs.statSync(filePath);
@@ -204,8 +205,8 @@ module.exports = (function() {
     });
     server.get('/id/:folder/:timestampIndex', function (req, res, next) {
       var timestampValue = timestampArray[req.params.timestampIndex];
-      output.debug("length of timestampArray is "+timestampArray.length);
-      output.debug(timestampValue);
+      //output.debug("length of timestampArray is "+timestampArray.length);
+      //output.debug(timestampValue);
       if(timestampValue){
         var sendObj = {
           timestamp: timestampValue
